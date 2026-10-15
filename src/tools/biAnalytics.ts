@@ -34,6 +34,10 @@ import {
   type GrowthResult
 } from "../services/aggregationHelpers.js";
 import {
+  fortnoxNumberOrZero,
+  type FortnoxNumber
+} from "../services/fortnoxNumbers.js";
+import {
   CashFlowForecastSchema,
   OrderPipelineSchema,
   SalesFunnelSchema,
@@ -87,8 +91,9 @@ interface FortnoxSupplierInvoiceListItem {
   SupplierName?: string;
   InvoiceDate?: string;
   DueDate?: string;
-  Total?: number;
-  Balance?: number;
+  // Fortnox returns these as JSON strings for supplier invoices.
+  Total?: FortnoxNumber;
+  Balance?: FortnoxNumber;
   Currency?: string;
   Booked?: boolean;
   Cancelled?: boolean;
@@ -332,7 +337,7 @@ export function registerBIAnalyticsTools(server: McpServer): void {
           const periodPayables = payablesByPeriod.get(bucket) || [];
 
           const inflows = sumBy(periodReceivables, inv => inv.Balance || 0);
-          const outflows = sumBy(periodPayables, inv => inv.Balance || 0);
+          const outflows = sumBy(periodPayables, inv => fortnoxNumberOrZero(inv.Balance));
           const netFlow = inflows - outflows;
           runningBalance += netFlow;
 
@@ -349,7 +354,7 @@ export function registerBIAnalyticsTools(server: McpServer): void {
 
         // Calculate totals
         const totalInflows = sumBy(receivables, inv => inv.Balance || 0);
-        const totalOutflows = sumBy(payables, inv => inv.Balance || 0);
+        const totalOutflows = sumBy(payables, inv => fortnoxNumberOrZero(inv.Balance));
 
         const output: Record<string, unknown> = {
           forecast: {

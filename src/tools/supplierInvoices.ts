@@ -16,6 +16,10 @@ import {
   type AgeBucket
 } from "../services/dateHelpers.js";
 import {
+  fortnoxNumberOrZero,
+  type FortnoxNumber
+} from "../services/fortnoxNumbers.js";
+import {
   ListSupplierInvoicesSchema,
   GetSupplierInvoiceSchema,
   ApproveSupplierInvoiceSchema,
@@ -66,8 +70,9 @@ interface FortnoxSupplierInvoiceListItem {
   InvoiceNumber?: string;
   InvoiceDate?: string;
   DueDate?: string;
-  Total?: number;
-  Balance?: number;
+  // Fortnox returns these as JSON strings for supplier invoices.
+  Total?: FortnoxNumber;
+  Balance?: FortnoxNumber;
   Currency?: string;
   Booked?: boolean;
   Cancelled?: boolean;
@@ -92,7 +97,7 @@ interface SupplierInvoiceResponse {
  */
 function getSupplierInvoiceStatus(inv: FortnoxSupplierInvoiceListItem): string {
   if (inv.Cancelled) return "cancelled";
-  if ((inv.Balance || 0) === 0) return "paid";
+  if (fortnoxNumberOrZero(inv.Balance) === 0) return "paid";
   if (!inv.Booked) return "draft";
   return "unpaid";
 }
@@ -198,10 +203,10 @@ Examples:
 
         // Apply client-side amount filters
         if (params.min_amount !== undefined) {
-          invoices = invoices.filter(inv => (inv.Total || 0) >= params.min_amount!);
+          invoices = invoices.filter(inv => fortnoxNumberOrZero(inv.Total) >= params.min_amount!);
         }
         if (params.max_amount !== undefined) {
-          invoices = invoices.filter(inv => (inv.Total || 0) <= params.max_amount!);
+          invoices = invoices.filter(inv => fortnoxNumberOrZero(inv.Total) <= params.max_amount!);
         }
 
         // Build pagination metadata
@@ -229,8 +234,8 @@ Examples:
             invoice_number: inv.InvoiceNumber || null,
             invoice_date: inv.InvoiceDate || null,
             due_date: inv.DueDate || null,
-            total: inv.Total || 0,
-            balance: inv.Balance || 0,
+            total: fortnoxNumberOrZero(inv.Total),
+            balance: fortnoxNumberOrZero(inv.Balance),
             currency: inv.Currency || "SEK",
             booked: inv.Booked ?? false,
             cancelled: inv.Cancelled ?? false,
@@ -267,7 +272,7 @@ Examples:
               lines.push(`- **Supplier**: ${inv.SupplierName || inv.SupplierNumber}`);
               lines.push(`- **Invoice Number**: ${inv.InvoiceNumber || "-"}`);
               lines.push(`- **Date**: ${formatDisplayDate(inv.InvoiceDate)} | **Due**: ${formatDisplayDate(inv.DueDate)}`);
-              lines.push(`- **Total**: ${formatMoney(inv.Total, inv.Currency)} | **Balance**: ${formatMoney(inv.Balance, inv.Currency)}`);
+              lines.push(`- **Total**: ${formatMoney(fortnoxNumberOrZero(inv.Total), inv.Currency)} | **Balance**: ${formatMoney(fortnoxNumberOrZero(inv.Balance), inv.Currency)}`);
               lines.push(`- **Status**: ${status.toUpperCase()}`);
               lines.push("");
             }
@@ -286,7 +291,7 @@ Examples:
                   `- **Supplier**: ${inv.SupplierName || inv.SupplierNumber}\n` +
                   `- **Invoice Number**: ${inv.InvoiceNumber || "-"}\n` +
                   `- **Date**: ${formatDisplayDate(inv.InvoiceDate)} | **Due**: ${formatDisplayDate(inv.DueDate)}\n` +
-                  `- **Total**: ${formatMoney(inv.Total, inv.Currency)} | **Balance**: ${formatMoney(inv.Balance, inv.Currency)}\n` +
+                  `- **Total**: ${formatMoney(fortnoxNumberOrZero(inv.Total), inv.Currency)} | **Balance**: ${formatMoney(fortnoxNumberOrZero(inv.Balance), inv.Currency)}\n` +
                   `- **Status**: ${status.toUpperCase()}`;
               }
             );
@@ -530,12 +535,12 @@ Examples:
 
         // Apply min_amount filter
         if (params.min_amount !== undefined) {
-          invoices = invoices.filter(inv => (inv.Balance || 0) >= params.min_amount!);
+          invoices = invoices.filter(inv => fortnoxNumberOrZero(inv.Balance) >= params.min_amount!);
         }
 
         // Calculate overall summary
-        const totalPayable = invoices.reduce((sum, inv) => sum + (inv.Balance || 0), 0);
-        const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + (inv.Total || 0), 0);
+        const totalPayable = invoices.reduce((sum, inv) => sum + fortnoxNumberOrZero(inv.Balance), 0);
+        const totalInvoiceAmount = invoices.reduce((sum, inv) => sum + fortnoxNumberOrZero(inv.Total), 0);
 
         // Group by age bucket
         const byAgeBucket = new Map<AgeBucket, FortnoxSupplierInvoiceListItem[]>();
@@ -580,7 +585,7 @@ Examples:
             return {
               bucket,
               count: items.length,
-              total_balance: items.reduce((sum, inv) => sum + (inv.Balance || 0), 0)
+              total_balance: items.reduce((sum, inv) => sum + fortnoxNumberOrZero(inv.Balance), 0)
             };
           });
         }
@@ -590,14 +595,14 @@ Examples:
             .map(([supplier, items]) => ({
               supplier,
               count: items.length,
-              total_balance: items.reduce((sum, inv) => sum + (inv.Balance || 0), 0)
+              total_balance: items.reduce((sum, inv) => sum + fortnoxNumberOrZero(inv.Balance), 0)
             }))
             .sort((a, b) => b.total_balance - a.total_balance);
         }
 
         if (params.include_details) {
           output.invoices = invoices
-            .sort((a, b) => (b.Balance || 0) - (a.Balance || 0))
+            .sort((a, b) => fortnoxNumberOrZero(b.Balance) - fortnoxNumberOrZero(a.Balance))
             .map(inv => ({
               given_number: inv.GivenNumber,
               supplier_number: inv.SupplierNumber,
@@ -605,8 +610,8 @@ Examples:
               invoice_number: inv.InvoiceNumber || null,
               invoice_date: inv.InvoiceDate || null,
               due_date: inv.DueDate || null,
-              total: inv.Total || 0,
-              balance: inv.Balance || 0,
+              total: fortnoxNumberOrZero(inv.Total),
+              balance: fortnoxNumberOrZero(inv.Balance),
               age_bucket: getAgeBucket(inv.DueDate)
             }));
         }
@@ -644,7 +649,7 @@ Examples:
 
             for (const bucket of ageBucketOrder) {
               const items = byAgeBucket.get(bucket)!;
-              const balance = items.reduce((sum, inv) => sum + (inv.Balance || 0), 0);
+              const balance = items.reduce((sum, inv) => sum + fortnoxNumberOrZero(inv.Balance), 0);
               if (items.length > 0) {
                 lines.push(`| ${bucket} | ${items.length} | ${formatMoney(balance)} |`);
               }
@@ -662,7 +667,7 @@ Examples:
               .map(([supplier, items]) => ({
                 supplier,
                 count: items.length,
-                balance: items.reduce((sum, inv) => sum + (inv.Balance || 0), 0)
+                balance: items.reduce((sum, inv) => sum + fortnoxNumberOrZero(inv.Balance), 0)
               }))
               .sort((a, b) => b.balance - a.balance)
               .slice(0, 20); // Limit to top 20 in markdown
@@ -684,7 +689,7 @@ Examples:
             lines.push("|---------|----------|----------|---------|-----|");
 
             const displayInvoices = invoices
-              .sort((a, b) => (b.Balance || 0) - (a.Balance || 0))
+              .sort((a, b) => fortnoxNumberOrZero(b.Balance) - fortnoxNumberOrZero(a.Balance))
               .slice(0, 50); // Limit to top 50 in markdown
 
             for (const inv of displayInvoices) {
@@ -693,7 +698,7 @@ Examples:
                 `| #${inv.GivenNumber} ` +
                 `| ${inv.SupplierName || inv.SupplierNumber} ` +
                 `| ${inv.DueDate || "-"} ` +
-                `| ${formatMoney(inv.Balance)} ` +
+                `| ${formatMoney(fortnoxNumberOrZero(inv.Balance))} ` +
                 `| ${bucket} |`
               );
             }
