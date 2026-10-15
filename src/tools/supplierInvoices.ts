@@ -50,8 +50,8 @@ interface FortnoxSupplierInvoice {
   InvoiceNumber?: string;
   InvoiceDate?: string;
   DueDate?: string;
-  Total?: number;
-  Balance?: number;
+  Total?: FortnoxNumber;
+  Balance?: FortnoxNumber;
   Currency?: string;
   Booked?: boolean;
   Cancelled?: boolean;
@@ -340,8 +340,8 @@ Returns:
           invoice_number: invoice.InvoiceNumber || null,
           invoice_date: invoice.InvoiceDate || null,
           due_date: invoice.DueDate || null,
-          total: invoice.Total || 0,
-          balance: invoice.Balance || 0,
+          total: fortnoxNumberOrZero(invoice.Total),
+          balance: fortnoxNumberOrZero(invoice.Balance),
           currency: invoice.Currency || "SEK",
           ocr: invoice.OCR || null,
           booked: invoice.Booked ?? false,
@@ -366,7 +366,7 @@ Returns:
           textContent = JSON.stringify(output, null, 2);
         } else {
           const status = invoice.Cancelled ? "CANCELLED" :
-            (invoice.Balance === 0 ? "PAID" :
+            (fortnoxNumberOrZero(invoice.Balance) === 0 ? "PAID" :
               (invoice.Booked ? "BOOKED" : "DRAFT"));
 
           const lines = [
@@ -385,8 +385,8 @@ Returns:
             `- **OCR**: ${invoice.OCR || "-"}`,
             "",
             "## Amounts",
-            `- **Total**: ${formatMoney(invoice.Total, invoice.Currency)}`,
-            `- **Balance**: ${formatMoney(invoice.Balance, invoice.Currency)}`,
+            `- **Total**: ${formatMoney(fortnoxNumberOrZero(invoice.Total), invoice.Currency)}`,
+            `- **Balance**: ${formatMoney(fortnoxNumberOrZero(invoice.Balance), invoice.Currency)}`,
             ""
           ];
 
@@ -451,7 +451,7 @@ Returns:
           message: `Supplier invoice #${invoice.GivenNumber} has been approved for payment`,
           given_number: invoice.GivenNumber,
           supplier_name: invoice.SupplierName || null,
-          total: invoice.Total || 0,
+          total: fortnoxNumberOrZero(invoice.Total),
           payment_pending: true
         };
 
