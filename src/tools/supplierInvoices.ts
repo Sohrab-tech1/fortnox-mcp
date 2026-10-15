@@ -462,7 +462,7 @@ Returns:
           textContent = `# Supplier Invoice Approved\n\n` +
             `Supplier invoice **#${invoice.GivenNumber}** has been approved for payment.\n\n` +
             `**Supplier**: ${invoice.SupplierName || invoice.SupplierNumber}\n` +
-            `**Total**: ${formatMoney(invoice.Total, invoice.Currency)}\n\n` +
+            `**Total**: ${formatMoney(fortnoxNumberOrZero(invoice.Total), invoice.Currency)}\n\n` +
             `The invoice is now marked as pending payment.`;
         }
 
